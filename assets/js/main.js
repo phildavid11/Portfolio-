@@ -1,8 +1,11 @@
 const menuBtn = document.getElementById("menuBtn");
 const navLinks = document.getElementById("navLinks");
 const header = document.getElementById("siteHeader");
+const scrollProgress = document.getElementById("scrollProgress");
+const typedRole = document.getElementById("typedRole");
 const navItems = document.querySelectorAll(".nav-links a[href^='#']");
 const sections = document.querySelectorAll("main section[id]");
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 if (menuBtn && navLinks) {
   const syncMenuButton = () => {
@@ -80,21 +83,106 @@ const updateActiveNav = () => {
   });
 };
 
+const updateScrollProgress = () => {
+  if (!scrollProgress) {
+    return;
+  }
+
+  const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+  const progress = scrollableHeight > 0 ? (window.scrollY / scrollableHeight) * 100 : 0;
+
+  scrollProgress.style.width = `${Math.min(progress, 100)}%`;
+};
+
 window.addEventListener("scroll", () => {
   updateHeader();
   updateActiveNav();
+  updateScrollProgress();
 }, { passive: true });
+
+window.addEventListener("resize", updateScrollProgress);
 
 updateHeader();
 updateActiveNav();
+updateScrollProgress();
 
-const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const startTypingRoles = () => {
+  if (!typedRole) {
+    return;
+  }
+
+  const roles = typedRole.dataset.roles
+    ? typedRole.dataset.roles.split("|").filter(Boolean)
+    : [];
+
+  if (!roles.length) {
+    return;
+  }
+
+  if (prefersReducedMotion) {
+    typedRole.textContent = roles[0];
+    return;
+  }
+
+  let roleIndex = 0;
+  let charIndex = 0;
+  let isDeleting = false;
+
+  const typeNext = () => {
+    const currentRole = roles[roleIndex];
+    const visibleText = currentRole.slice(0, charIndex);
+
+    typedRole.textContent = visibleText;
+
+    if (!isDeleting && charIndex < currentRole.length) {
+      charIndex += 1;
+      window.setTimeout(typeNext, 74);
+      return;
+    }
+
+    if (!isDeleting && charIndex === currentRole.length) {
+      isDeleting = true;
+      window.setTimeout(typeNext, 1450);
+      return;
+    }
+
+    if (isDeleting && charIndex > 0) {
+      charIndex -= 1;
+      window.setTimeout(typeNext, 38);
+      return;
+    }
+
+    isDeleting = false;
+    roleIndex = (roleIndex + 1) % roles.length;
+    window.setTimeout(typeNext, 260);
+  };
+
+  typeNext();
+};
+
+startTypingRoles();
+
 const revealItems = document.querySelectorAll(
   ".section-title, .about-content, .highlight-card, .skill-card, .certification-card, .project-card, .service-card, .contact-card"
 );
 
 if ("IntersectionObserver" in window && !prefersReducedMotion) {
-  revealItems.forEach(item => item.classList.add("reveal"));
+  revealItems.forEach((item, index) => {
+    item.classList.add("reveal");
+
+    if (item.classList.contains("about-content") || item.classList.contains("contact-card")) {
+      item.classList.add("reveal-left");
+    } else if (item.classList.contains("highlight-card")) {
+      item.classList.add("reveal-right");
+    } else if (
+      item.classList.contains("skill-card") ||
+      item.classList.contains("certification-card") ||
+      item.classList.contains("project-card") ||
+      item.classList.contains("service-card")
+    ) {
+      item.classList.add(index % 2 === 0 ? "reveal-zoom" : "reveal-right");
+    }
+  });
 
   const revealObserver = new IntersectionObserver(entries => {
     entries.forEach(entry => {
