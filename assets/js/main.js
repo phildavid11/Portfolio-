@@ -198,3 +198,109 @@ if ("IntersectionObserver" in window && !prefersReducedMotion) {
 
   revealItems.forEach(item => revealObserver.observe(item));
 }
+
+const galleries = document.querySelectorAll("[data-gallery]");
+
+const getGallerySlides = gallery => Array.from(gallery.querySelectorAll(".gallery-slide"));
+
+const restartGalleryProgress = gallery => {
+  gallery.classList.remove("is-autoplaying");
+  void gallery.offsetWidth;
+  gallery.classList.add("is-autoplaying");
+};
+
+const normalizeGalleryIndex = (index, slideCount) => {
+  if (!slideCount) {
+    return 0;
+  }
+
+  return ((index % slideCount) + slideCount) % slideCount;
+};
+
+const setGallerySlide = (gallery, index) => {
+  const slides = getGallerySlides(gallery);
+
+  if (!slides.length) {
+    return;
+  }
+
+  const activeIndex = normalizeGalleryIndex(index, slides.length);
+  const activeSlide = slides[activeIndex];
+  const titleEl = gallery.querySelector("[data-gallery-title]");
+  const countEl = gallery.querySelector("[data-gallery-count]");
+
+  gallery.dataset.activeIndex = String(activeIndex);
+
+  slides.forEach((slide, slideIndex) => {
+    slide.classList.toggle("is-active", slideIndex === activeIndex);
+  });
+
+  if (titleEl) {
+    titleEl.textContent = activeSlide.dataset.title || "Project screenshot";
+  }
+
+  if (countEl) {
+    countEl.textContent = `${activeIndex + 1} / ${slides.length}`;
+  }
+
+  restartGalleryProgress(gallery);
+};
+
+const moveGallery = (gallery, direction) => {
+  const currentIndex = Number(gallery.dataset.activeIndex || 0);
+  setGallerySlide(gallery, currentIndex + direction);
+};
+
+galleries.forEach(gallery => {
+  const prevButton = gallery.querySelector("[data-gallery-prev]");
+  const nextButton = gallery.querySelector("[data-gallery-next]");
+  const intervalDelay = Number(gallery.dataset.galleryInterval || 4500);
+  let isPaused = false;
+
+  gallery.style.setProperty("--gallery-duration", `${intervalDelay}ms`);
+  setGallerySlide(gallery, Number(gallery.dataset.activeIndex || 0));
+
+  if (prevButton) {
+    prevButton.addEventListener("click", () => {
+      moveGallery(gallery, -1);
+    });
+  }
+
+  if (nextButton) {
+    nextButton.addEventListener("click", () => {
+      moveGallery(gallery, 1);
+    });
+  }
+
+  gallery.addEventListener("mouseenter", () => {
+    isPaused = true;
+    gallery.classList.remove("is-autoplaying");
+  });
+
+  gallery.addEventListener("mouseleave", () => {
+    isPaused = false;
+    restartGalleryProgress(gallery);
+  });
+
+  gallery.addEventListener("focusin", () => {
+    isPaused = true;
+    gallery.classList.remove("is-autoplaying");
+  });
+
+  gallery.addEventListener("focusout", event => {
+    if (!gallery.contains(event.relatedTarget)) {
+      isPaused = false;
+      restartGalleryProgress(gallery);
+    }
+  });
+
+  if (getGallerySlides(gallery).length > 1) {
+    window.setInterval(() => {
+      if (isPaused || document.hidden) {
+        return;
+      }
+
+      moveGallery(gallery, 1);
+    }, intervalDelay);
+  }
+});
